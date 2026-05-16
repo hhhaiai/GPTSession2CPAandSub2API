@@ -715,7 +715,7 @@
           </div>
           <div class="panel-body">
             <p class="notice" id="cpa-notice">
-              ChatGPT Web session 一般没有 `refresh_token`；缺少真实 `id_token` 时会构造 CPA/Cockpit 可解析的占位 claims，实际调用仍依赖 access token。
+              ChatGPT Web session 一般没有 `refresh_token`；缺少真实 `id_token` 时会构造 Codex 可解析的占位 JWT claims，实际调用仍依赖 access token。
             </p>
             <div class="summary" aria-label="转换统计">
               <div class="stat">
@@ -963,7 +963,7 @@
             payload.email = email;
           }
 
-          return `${encodeBase64UrlJson({ alg: "none", typ: "JWT", cpa_synthetic: true })}.${encodeBase64UrlJson(payload)}.`;
+          return `${encodeBase64UrlJson({ alg: "none", typ: "JWT", cpa_synthetic: true })}.${encodeBase64UrlJson(payload)}.synthetic`;
         }
 
         function getExpiresIn(expiresAt, now = new Date()) {
