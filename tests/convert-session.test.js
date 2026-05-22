@@ -112,6 +112,80 @@ function dispatch(element, type) {
   element.listeners[type]({ target: element });
 }
 
+function jwtWithPayload(payload) {
+  return [
+    Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url"),
+    Buffer.from(JSON.stringify(payload)).toString("base64url"),
+    "sig",
+  ].join(".");
+}
+
+function testSub2apiAccountUsesAccessTokenExpiry() {
+  const { elements } = loadPageScript();
+  const input = elements.get("#session-input");
+  const output = elements.get("#output");
+
+  input.value = JSON.stringify({
+    user: {
+      email: "mark@example.com",
+    },
+    accessToken: jwtWithPayload({
+      exp: 1780473960,
+      "https://api.openai.com/auth": {
+        chatgpt_account_id: "chatgpt-account-1",
+      },
+    }),
+  });
+  dispatch(input, "input");
+
+  const document = JSON.parse(output.value);
+  const account = document.accounts[0];
+
+  assert.equal(document.expires_at, undefined);
+  assert.equal(document.auto_pause_on_expired, undefined);
+  assert.equal(document.accounts.length, 1);
+  assert.equal(account.expires_at, 1780473960);
+  assert.equal(account.auto_pause_on_expired, true);
+}
+
+function testSub2apiAccountsUseTheirOwnAccessTokenExpiry() {
+  const { elements } = loadPageScript();
+  const input = elements.get("#session-input");
+  const output = elements.get("#output");
+
+  input.value = JSON.stringify([
+    {
+      email: "late@example.com",
+      accessToken: jwtWithPayload({
+        exp: 1780473960,
+        "https://api.openai.com/auth": {
+          chatgpt_account_id: "chatgpt-account-late",
+        },
+      }),
+    },
+    {
+      email: "early@example.com",
+      accessToken: jwtWithPayload({
+        exp: 1780000000,
+        "https://api.openai.com/auth": {
+          chatgpt_account_id: "chatgpt-account-early",
+        },
+      }),
+    },
+  ]);
+  dispatch(input, "input");
+
+  const document = JSON.parse(output.value);
+
+  assert.equal(document.expires_at, undefined);
+  assert.equal(document.auto_pause_on_expired, undefined);
+  assert.equal(document.accounts.length, 2);
+  assert.equal(document.accounts[0].expires_at, 1780473960);
+  assert.equal(document.accounts[0].auto_pause_on_expired, true);
+  assert.equal(document.accounts[1].expires_at, 1780000000);
+  assert.equal(document.accounts[1].auto_pause_on_expired, true);
+}
+
 function testSyntheticIdTokenHasCodexParseableJwtFormat() {
   const { elements, formatButtons } = loadPageScript();
   const cpaButton = formatButtons.find((button) => button.dataset.format === "cpa");
@@ -272,6 +346,8 @@ function testCodexManagerAuthJsonPreservesRealRefreshAndMetadata() {
   assert.equal(authJson.meta.chatgpt_account_id, "chatgpt-account-1");
 }
 
+testSub2apiAccountUsesAccessTokenExpiry();
+testSub2apiAccountsUseTheirOwnAccessTokenExpiry();
 testSyntheticIdTokenHasCodexParseableJwtFormat();
 testAxonHubAuthJsonUsesPlaceholderRefreshTokenWhenMissing();
 testAxonHubAuthJsonPreservesRealRefreshToken();

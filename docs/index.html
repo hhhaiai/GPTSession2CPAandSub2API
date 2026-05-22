@@ -935,6 +935,15 @@
           return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
         }
 
+        function unixSecondsFromJwtExp(value) {
+          const numeric = Number(value);
+          if (!Number.isFinite(numeric) || numeric <= 0) {
+            return undefined;
+          }
+
+          return Math.trunc(numeric);
+        }
+
         function epochSecondsFromValue(value) {
           if (value === undefined || value === null || value === "") {
             return 0;
@@ -1197,6 +1206,7 @@
           const auth = getOpenAIAuthSection(payload);
           const idAuth = getOpenAIAuthSection(idPayload);
           const profile = getOpenAIProfileSection(payload);
+          const accessTokenExpiresAt = unixSecondsFromJwtExp(payload?.exp);
           const expiresAt = firstNonEmpty(
             payload ? timestampFromUnixSeconds(payload.exp) : undefined,
             normalizeTimestamp(record.expires),
@@ -1325,6 +1335,8 @@
             name: firstNonEmpty(name, email, sourceName, "ChatGPT Account"),
             platform: "openai",
             type: "oauth",
+            expires_at: accessTokenExpiresAt,
+            auto_pause_on_expired: true,
             concurrency: 10,
             priority: 1,
             credentials: {
@@ -1407,6 +1419,7 @@
             email,
             name,
             expiresAt,
+            accessTokenExpiresAt,
             cpa,
             cockpit,
             nineRouter,
